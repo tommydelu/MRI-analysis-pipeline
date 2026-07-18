@@ -33,7 +33,7 @@ def avg_signal_along_time(data_4d, TR=None):
     plt.show()
 
 
-def load_and_display(nii_path: str, name: str):
+def load_and_display(nii_path: str, name: str, print_info = True):
     """
     Input:
     - nii_path: path to the .nii file
@@ -49,15 +49,16 @@ def load_and_display(nii_path: str, name: str):
 
     voxel_size = tuple(round(float(v),3) for v in nii_hdr.get_zooms())
     
-    print(f"\nINFORMATION ABOUT {name} NIFTI FILE:")
-    print("\n"+"-"*100)
-    
-    print(f"Type of variable nii_img: {type(nii_img)}")
-    print(f"Type of variable nii_hdr: {type(nii_hdr)}")
-    print(f"Shape of the NIfTI image: {nii_img.shape}")
-    print(f"Dimensions of the NIfTI image: {nii_dim}")
-    print(f"Dimensions of NIfTI img data: {nii_data.shape}")
-    print(f"Voxel size (mm): {voxel_size}")
+    if print_info:
+        print(f"\nINFORMATION ABOUT {name} NIFTI FILE:")
+        print("\n"+"-"*100)
+        
+        print(f"Type of variable nii_img: {type(nii_img)}")
+        print(f"Type of variable nii_hdr: {type(nii_hdr)}")
+        print(f"Shape of the NIfTI image: {nii_img.shape}")
+        print(f"Dimensions of the NIfTI image: {nii_dim}")
+        print(f"Dimensions of NIfTI img data: {nii_data.shape}")
+        print(f"Voxel size (mm): {voxel_size}")
     
     return nii_img, nii_hdr, nii_data, nii_dim
 
