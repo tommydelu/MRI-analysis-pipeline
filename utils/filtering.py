@@ -4,6 +4,8 @@ import scipy.fft as fft
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.ndimage import gaussian_filter
+
 
 def low_pass_filter(slice_2d, threshold):
 
@@ -170,6 +172,16 @@ def canny_edge_detection(slice):
     plt.show()
 
 
+def fmri_volumes_smoothing(data_4d):
+
+    smoothed_data = np.zeros_like(data_4d)
+
+    for time in range(data_4d.shape[2]):
+        voxel = data_4d[:, :, time, :]
+        smoothed_voxel = gaussian_filter(voxel, sigma=1)  
+        smoothed_data[:, :, time, :] = smoothed_voxel
+
+    return smoothed_data
 
 
 

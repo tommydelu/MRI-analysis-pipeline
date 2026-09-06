@@ -200,3 +200,9 @@ def avg_intensity_along_axis(nii_data, mask_data=None, axis="axial"):
     plt.show()
 
     return means
+
+
+def avgFmriTemporalVolume(fmri_data):
+
+    avg_volume = np.mean(fmri_data,axis=3)
+    return avg_volume

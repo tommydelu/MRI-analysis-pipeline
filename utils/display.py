@@ -131,6 +131,3 @@ def display_group_of_slices(nii_data, num_to_disp, starting_idx=0, sparse=False,
     plt.tight_layout()
     plt.show()
 
-
-
-
