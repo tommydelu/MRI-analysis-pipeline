@@ -33,38 +33,7 @@ def avg_signal_along_time(data_4d, TR=None):
     plt.show()
 
 
-def _get_slice(nii_data, slice_idx, axis="axial", time_instant=0):
-    """
-    Auxiliary function: extracts a 2D slice from 3D or 4D nii_data,
-    given the axis and slice index. Handles bounds checking via assert.
 
-    Return: 2D slice, and the size of the volume along the chosen axis
-            (useful for titles / labels).
-    """
-    axis_to_shape_idx = {"axial": 2, "sagittal": 1, "coronal": 0}
-    
-    if axis not in axis_to_shape_idx:
-        raise ValueError('axis must be "axial", "sagittal" or "coronal"')
-    
-    shape_idx = axis_to_shape_idx[axis]
-    n_slices = nii_data.shape[shape_idx]
-    
-    is_4d = len(nii_data.shape) > 3
-    if is_4d:
-        assert slice_idx < n_slices and time_instant < nii_data.shape[3], \
-            "You need to choose a slice index < {} or a time instant < {}.".format(n_slices, nii_data.shape[3])
-    else:
-        assert slice_idx < n_slices, \
-            "You need to choose a slice index < {}.".format(n_slices)
-    
-    if axis == "axial":
-        slice_2d = nii_data[:, :, slice_idx, time_instant] if is_4d else nii_data[:, :, slice_idx]
-    elif axis == "sagittal":
-        slice_2d = nii_data[:, slice_idx, :, time_instant] if is_4d else nii_data[:, slice_idx, :]
-    else:  # coronal
-        slice_2d = nii_data[slice_idx, :, :, time_instant] if is_4d else nii_data[slice_idx, :, :]
-    
-    return slice_2d, n_slices
 
 
 def single_slice_hist(nii_data, mask_data, slice_idx, axis = "axial"):

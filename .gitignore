@@ -2,4 +2,10 @@
 data/
 .DS_Store
 *.csv
-__pycache__
+__pycache__/
+*.npy
+/figures
+utils/*
+*.pyc
+
+

@@ -2,84 +2,134 @@ import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
 
-from utils.statistics import _get_slice
+# ----------------------------------------------------------------- #
+# Load a file in the .nii format and display a summary of its       #
+# characteristics                                                   #
+# ----------------------------------------------------------------- #
+def loadAndDisplay(nii_path: str, name: str, print_summary = True) -> dict:
 
-
-def compare_methods(t1_data, segmented1, segmented2, slice_idx, axis="axial"):
-
-    original_slice, _ = _get_slice(t1_data, slice_idx=slice_idx, axis=axis)
-    slice1, _ = _get_slice(segmented1, slice_idx=slice_idx, axis=axis)
-    slice2, _ = _get_slice(segmented2, slice_idx=slice_idx, axis=axis)
-
-    fig, axs = plt.subplots(1,3,figsize=(10,6))
-    axs[0].imshow(original_slice, cmap='gray')
-    axs[0].set_axis_off()
-    axs[0].set_title("Original Image")
-    axs[1].imshow(slice1, cmap='gray')
-    axs[1].set_axis_off()
-    axs[1].set_title("KMeans result")
-    axs[2].imshow(slice2, cmap='gray')
-    axs[2].set_axis_off()
-    axs[2].set_title("Otsu Result")
-
-
-def load_and_display(nii_path: str, name: str, print_info = True):
     """
     Input:
-    - nii_path: path to the .nii file
-    - name: descriptive name for the display of info
+    - nii_path: path that leads to the .nii file of interest
+    - name: name assigned in the summary
+    - print_summary: set to True to display the summary
 
-    Return: dict data, header data, img data and dimension of the img
+    Output:
+    - nii_dict: dictionary containing the img, heder, data, and dims of the NiFti file
     """
+    nii_dict = {"img": None, "hdr": None, "data": None, "dims": None}
 
-    nii_img = nib.load(nii_path)
-    nii_hdr = nii_img.header
-    nii_data = nii_img.get_fdata()
-    nii_dim = nii_hdr['dim'][:4]
+    nii_dict['img'] = nib.load(nii_path)
+    nii_dict['hdr'] = nii_dict['img'].header
+    nii_dict['data'] = nii_dict['img'].get_fdata()
+    nii_dict['dims'] = nii_dict['hdr']['dim'][:4]
 
-    voxel_size = tuple(round(float(v),3) for v in nii_hdr.get_zooms())
-    
-    if print_info:
+    voxel_size = tuple(round(float(v),3) for v in nii_dict['hdr'].get_zooms())
+
+    if print_summary:
         print(f"\nINFORMATION ABOUT {name} NIFTI FILE:")
         print("\n"+"-"*100)
         
-        print(f"Type of variable nii_img: {type(nii_img)}")
-        print(f"Type of variable nii_hdr: {type(nii_hdr)}")
-        print(f"Shape of the NIfTI image: {nii_img.shape}")
-        print(f"Dimensions of the NIfTI image: {nii_dim}")
-        print(f"Dimensions of NIfTI img data: {nii_data.shape}")
+        print(f"Type of variable nii_img: {type(nii_dict['img'])}")
+        print(f"Type of variable nii_hdr: {type(nii_dict['hdr'])}")
+        print(f"Shape of the NIfTI image: {nii_dict['img'].shape}")
+        print(f"Dimensions of the NIfTI image: {nii_dict['dims']}")
+        print(f"Dimensions of NIfTI img data: {nii_dict['data'].shape}")
         print(f"Voxel size (mm): {voxel_size}")
     
-    return nii_img, nii_hdr, nii_data, nii_dim
+    return nii_dict
 
-
-def display_single_slice(nii_data, slice_idx, axis="axial", time_instant=0):
+# ----------------------------------------------------------------- #
+# Display only one slice of the structure that is given in input.   #
+# You can decide to display an axial slice, coronal, or sagittal    #           
+# ----------------------------------------------------------------- #
+def displaySingleSlice(nii_data: np.memmap, slice_idx: int, 
+                       axis: str = "axial", time_instant: int = 0, 
+                       save_figure: bool = False, figure_name: str = '') -> None:
     """
     Input: 
-    - img data of some .nii file
-    - slice_idx: index for a slice
+    - nii_data: data structure of a NifTi file
+    - slice_idx: index for a slice to display
     - axis: reference plane, choices are "axial" (default), "sagittal" and "coronal"
-    - time_instant: to choose a time instant when nii_data.shape is > 3 (fMRI for example), default is 0
+    - time_instant: to choose a time instant when nii_data.shape is > 3 (fMRI for example), default is 0.
+    - save_figure: if True, save the plot in the figures directory
+    - figure_name: give a name to the saved img
 
-    Return: void, it visualizes the chosen slice
+    Output:
+    - None
     """
-    slice_2d, n_slices = _get_slice(nii_data, slice_idx, axis, time_instant)
-    
+    # 1) Get the slice, for this purpose I use an auxiliary function.
+    slice, n_slices = getSlice(nii_data, slice_idx, axis, time_instant)
+
+    # 2) Plot the extracted slice.
     plt.figure(figsize=(6, 4))
-    plt.imshow(np.rot90(slice_2d, 1), cmap='gray', vmin=np.min(slice_2d))
+    plt.imshow(np.rot90(slice, 1), cmap='gray', vmin=np.min(slice)) # Rotate the slice for a better visualization
     plt.grid(False)
-    plt.title('Single slice, n. {} of {}'.format(slice_idx, n_slices))
+    plt.title(f'Slice n. {slice_idx} of {n_slices}')
     plt.axis('off')
+
+    if save_figure and len(nii_data.shape) == 3:
+        plt.savefig(f'figures/{figure_name}_single_slice_{axis}_idx_{slice_idx}.png')
+    elif save_figure and len(nii_data.shape) == 4:
+        plt.savefig(f'figures/{figure_name}_single_slice_{axis}_idx_{slice_idx}_time_{time_instant}.png')
+
     plt.show()
 
+# ----------------------------------------------------------------- #
+# Extract a 2D slice from the data structure given in input.        #
+# All the boundaries are checked to ensure a correct extraction     #
+# ----------------------------------------------------------------- #
+def getSlice(nii_data: np.memmap, slice_idx: int, axis: str = "axial", time_instant: int = 0) -> tuple[np.memmap, int]:
+    
+    """
+    Input:
+    - nii_data: data structure of a NifTi file
+    - slice_idx: index for a slice to display
+    - axis: reference plane, choices are "axial" (default), "sagittal" and "coronal"
+    - time_instant: to choose a time instant when nii_data.shape is > 3 (fMRI for example), default is 0.
+    
+    Output:
+    - slice: the 2D structure containing the slice
+    - n_slices: number of slices along the chosen axis (usefull for titles/labels)
+    """
 
-def display_group_of_slices(nii_data, num_to_disp, starting_idx=0, sparse=False,
-                              idxs_list=None, disp_step=1, axis="axial", time_instant=0,
-                              max_cols=4):
+    axis_to_shape_idx = {"axial": 2, "sagittal": 1, "coronal": 0} # axial represents the shape 2, sagittal shape 1, coronal shape 0
+    
+    if axis not in axis_to_shape_idx:
+        raise ValueError('Axis must be axial, sagittal or coronal')
+    
+    shape_idx = axis_to_shape_idx[axis]
+    n_slices = nii_data.shape[shape_idx]
+    
+    is_4d = len(nii_data.shape) > 3
+    if is_4d:
+        assert slice_idx < n_slices and time_instant < nii_data.shape[3], \
+            f"You need to choose a slice index < {n_slices} or a time instant < {nii_data.shape[3]}."
+    else:
+        assert slice_idx < n_slices, \
+            f"You need to choose a slice index < {n_slices}."
+    
+    if axis == "axial":
+        slice = nii_data[:, :, slice_idx, time_instant] if is_4d else nii_data[:, :, slice_idx]
+    elif axis == "sagittal":
+        slice = nii_data[:, slice_idx, :, time_instant] if is_4d else nii_data[:, slice_idx, :]
+    else:  # coronal
+        slice = nii_data[slice_idx, :, :, time_instant] if is_4d else nii_data[slice_idx, :, :]
+    
+    return slice, n_slices
+
+# ------------------------------------------------------------------- #
+# Given a NiFti data structure, display a group of slices.            #
+# You can give a predefined list of indexes or sample them randomnly, #
+# or set a starting idx with a step                                   #
+# ------------------------------------------------------------------- #
+def displayGroupOfSlices(nii_data: np.memmap, count, starting_idx: int = 0, sparse: bool = False,
+                         idxs_list: list = None, disp_step: int = 1, axis: str = "axial", time_instant: int = 0,
+                         max_cols: int = 4) -> None:
     """
     Input: 
     - nii_data: data structure to display
-    - num_to_disp: number of slices to display
+    - count: number of slices to display
     - starting_idx: first idx to display (used when sparse=False)
     - sparse: boolean, if True you can provide a list of idxs to display, if False starting idx and step are used (default = False)
     - idxs_list: list of indexes to display in case of sparse = True (default = None)
@@ -88,46 +138,81 @@ def display_group_of_slices(nii_data, num_to_disp, starting_idx=0, sparse=False,
     - time_instant: time point to use if nii_data is 4D (default = 0)
     - max_cols: maximum number of images per row (default = 4)
 
-    Return: void, displays a grid of slices
+    Output:
+    - None
     """
+
     axis_to_shape_idx = {"axial": 2, "sagittal": 1, "coronal": 0}
     if axis not in axis_to_shape_idx:
-        raise ValueError('axis must be "axial", "sagittal" or "coronal"')
-    n_slices_total = nii_data.shape[axis_to_shape_idx[axis]]
+        raise ValueError('Axis must be axial, sagittal or coronal')
+    
+    n_slices = nii_data.shape[axis_to_shape_idx[axis]]
 
-    # --- build the list of indices to display ---
+    # --- Build the list of indices to display ---
     if sparse:
-        if idxs_list is None:
-            print("Nessuna lista fornita: scelgo io {} indici casuali.".format(num_to_disp))
-            idxs_list = sorted(np.random.choice(n_slices_total, size=num_to_disp, replace=False))
+        if idxs_list is None: # Choose idxs randomnly
+            print(f"No list provided: choosing {count} random indexes.")
+            idxs_list = sorted(np.random.choice(n_slices, size = count, replace = False))
         else:
-            assert max(idxs_list) < n_slices_total, \
-                "All indices in idxs_list must be < {}.".format(n_slices_total)
-            num_to_disp = len(idxs_list)
+            assert max(idxs_list) < n_slices, \
+                f"All indices in idxs_list must be < {n_slices}."
+            count = len(idxs_list)
         indices = idxs_list
     else:
-        indices = [starting_idx + i * disp_step for i in range(num_to_disp)]
-        assert max(indices) < n_slices_total, \
-            "starting_idx + num_to_disp * disp_step exceeds the number of slices ({}).".format(n_slices_total)
+        indices = [starting_idx + i * disp_step for i in range(count)]
+        assert max(indices) < n_slices, \
+            f"starting_idx + count * disp_step exceeds the number of slices ({n_slices})."
 
-    # --- build the grid ---
-    n_cols = min(max_cols, num_to_disp)
-    n_rows = int(np.ceil(num_to_disp / n_cols))
+    # --- Build the grid ---
+    n_cols = min(max_cols, count)
+    n_rows = int(np.ceil(count / n_cols))
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
-    axes = np.atleast_1d(axes).flatten()  # flatten anche se n_rows=1 o n_cols=1
+    fig, axes = plt.subplots(n_rows, n_cols, figsize = (4 * n_cols, 4 * n_rows))
+    axes = np.atleast_1d(axes).flatten()
 
     for ax, idx in zip(axes, indices):
-        slice_2d, n_slices = _get_slice(nii_data, idx, axis, time_instant)
-        ax.imshow(np.rot90(slice_2d, 1), cmap='gray', vmin=np.min(slice_2d))
-        ax.set_title('Slice {} of {}'.format(idx, n_slices))
+        slice, num_slices = getSlice(nii_data, idx, axis, time_instant)
+        ax.imshow(np.rot90(slice, 1), cmap='gray', vmin=np.min(slice))
+        ax.set_title(f'Slice {idx} of {num_slices}')
         ax.axis('off')
 
-    # nascondi eventuali subplot vuoti in eccesso (griglia non piena)
+    # Hide empty subplots
     for ax in axes[len(indices):]:
         ax.axis('off')
 
-    plt.suptitle('{} view — group of {} slices'.format(axis.capitalize(), num_to_disp))
+    plt.suptitle(f'{axis.capitalize()} view — group of {count} slices')
     plt.tight_layout()
     plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
