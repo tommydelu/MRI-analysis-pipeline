@@ -43,7 +43,7 @@ def loadAndDisplay(nii_path: str, name: str, print_summary = True) -> dict:
 # Display only one slice of the structure that is given in input.   #
 # You can decide to display an axial slice, coronal, or sagittal    #           
 # ----------------------------------------------------------------- #
-def displaySingleSlice(nii_data: np.memmap, slice_idx: int, 
+def displaySingleSlice(nii_data: np.ndarray, slice_idx: int, 
                        axis: str = "axial", time_instant: int = 0, 
                        save_figure: bool = False, figure_name: str = '') -> None:
     """
@@ -79,7 +79,7 @@ def displaySingleSlice(nii_data: np.memmap, slice_idx: int,
 # Extract a 2D slice from the data structure given in input.        #
 # All the boundaries are checked to ensure a correct extraction     #
 # ----------------------------------------------------------------- #
-def getSlice(nii_data: np.memmap, slice_idx: int, axis: str = "axial", time_instant: int = 0) -> tuple[np.memmap, int]:
+def getSlice(nii_data: np.ndarray, slice_idx: int, axis: str = "axial", time_instant: int = 0) -> tuple[np.memmap, int]:
     
     """
     Input:
@@ -123,7 +123,7 @@ def getSlice(nii_data: np.memmap, slice_idx: int, axis: str = "axial", time_inst
 # You can give a predefined list of indexes or sample them randomnly, #
 # or set a starting idx with a step                                   #
 # ------------------------------------------------------------------- #
-def displayGroupOfSlices(nii_data: np.memmap, count, starting_idx: int = 0, sparse: bool = False,
+def displayGroupOfSlices(nii_data: np.ndarray, count, starting_idx: int = 0, sparse: bool = False,
                          idxs_list: list = None, disp_step: int = 1, axis: str = "axial", time_instant: int = 0,
                          max_cols: int = 4) -> None:
     """

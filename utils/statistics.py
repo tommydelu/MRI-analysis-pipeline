@@ -2,137 +2,132 @@ import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
 
+from utils.display import getSlice
 
-def avg_signal_along_time(data_4d, TR=None):
+
+# ----------------------------------------------------------------- #
+# Given a single slice this function plots the histogram of the t1  #
+# weighted image against the same slice but masked. Also other      #
+# characteristics are displayed such as the maximum and minimum     #
+# value, and the mean value along the chosen axis                   #
+# ----------------------------------------------------------------- #
+def sliceHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray, 
+                           slice_idx: int, axis: str = "axial") -> None:
+
     """
     Input:
-    - data_4d: volume fMRI 4D (x, y, z, t)
-    - TR: repetition time in secondi, se fornito l'asse x è in secondi, altrimenti in indice di volume (default None)
+    - nii_data: expected 3D array of t1 data
+    - mask_data: expected a 3D mask data associated to t1
+    - slice_idx: slice's index to print statistics and plot the histogram
+    - axis: point of view
 
-    Return: 1D numpy array con la media globale del segnale per ogni istante temporale;
-            mostra anche il plot del segnale nel tempo
+    Output:
+    - None
     """
-    n_timepoints = data_4d.shape[3]
-    means = np.zeros(n_timepoints)
 
-    for t in range(n_timepoints):
-        means[t] = np.mean(data_4d[:, :, :, t])
+    slice_data, _ = getSlice(nii_data, slice_idx, axis=axis)
+    mask_slice, _ = getSlice(mask_data, slice_idx, axis=axis)
 
-    if TR is not None:
-        time_pts = np.arange(n_timepoints) * TR
-        xlabel = 'Time (s)'
-    else:
-        time_pts = np.arange(n_timepoints)
-        xlabel = 'Time point index'
+    mask_bool = mask_slice.astype(bool)
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(time_pts, means)
-    plt.xlabel(xlabel)
-    plt.ylabel('Mean global signal')
-    plt.title('Average signal over time')
-    plt.show()
-
-
-
-
-
-def single_slice_hist(nii_data, mask_data, slice_idx, axis = "axial"):
-
-    slice_2d, _ = _get_slice(nii_data, slice_idx, axis=axis)
-    slice_1d = slice_2d.flatten()
-
-    mask_slice, _ = _get_slice(mask_data, slice_idx, axis=axis)
-    mask_slice = mask_slice.astype(bool)
-    mask_slice_flattened = mask_slice.flatten()
-
-    if mask_slice_flattened.sum() == 0:
-        print(f"Attenzione: lo slice {slice_idx} non contiene voxel dentro la maschera.")
+    if not np.any(mask_bool):
+        print(f"Attention: slice number {slice_idx} does not contain any voxel inside the mask.")
         return
 
-    fig, axs = plt.subplots(1,2,figsize=(10,6))
-    axs[0].hist(slice_1d, density=True, bins=255, range=(0,255))
-    axs[0].set_title('Slice {} — no mask'.format(slice_idx))
+    masked_voxels = slice_data[mask_bool]
 
-    axs[1].hist(slice_1d[mask_slice_flattened], density=True, bins=255, range=(0,255))
-    axs[1].set_title('Slice {} — masked'.format(slice_idx))
+    print(f"Max:  {np.max(masked_voxels):.2f}")
+    print(f"Min:  {np.min(masked_voxels):.2f}")
+    print(f"Mean: {np.mean(masked_voxels):.2f}")
+    print(f"Std:  {np.std(masked_voxels):.2f}")
 
+    all_voxels = slice_data.ravel()
+    hist_range = (float(np.min(all_voxels)), float(np.max(all_voxels)))
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+    
+    axs[0].hist(all_voxels, bins=100, range=hist_range, density=True, color='gray', alpha=0.7)
+    axs[0].set_title(f'Slice {slice_idx} — No mask')
+    axs[0].set_xlabel('Intensity')
+    axs[0].set_ylabel('Density')
+
+    axs[1].hist(masked_voxels, bins=100, range=hist_range, density=True, color='crimson', alpha=0.7)
+    axs[1].set_title(f'Slice {slice_idx} — Masked')
+    axs[1].set_xlabel('Intensity')
+
+    plt.tight_layout()
     plt.show()
 
-
-def volume_hist(nii_data, mask_data=None, bins=255, hist_range=(0, 255)):
+# ----------------------------------------------------------------- #
+# 
+# ----------------------------------------------------------------- #
+def volumeHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray | None = None, 
+                            bins = 100) -> None:
     """
     Input:
-    - nii_data: volume 3D (o 4D, in tal caso serve specificare un singolo volume prima di chiamare la funzione)
-    - mask_data: se fornita, l'istogramma viene calcolato solo sui voxel dentro la maschera (default None)
-    - bins, hist_range: parametri passati a plt.hist
+    - nii_data: 3D volume (or 4D, in this case a time instant must be chosen)
+    - mask_data: if provided, the histogram is computed only on the masked voxels (default is None)
+    - bins: plot parameters
 
-    Return: void, mostra l'istogramma del volume intero (masked vs unmasked se mask_data è fornita)
+    Output:
+    - None
     """
-    assert len(nii_data.shape) == 3, "volume_hist si aspetta un volume 3D. Se hai un 4D, seleziona prima un time point."
-    
-    data_flat = nii_data.flatten()
 
+    assert len(nii_data.shape) == 3, "volume_hist expects a 3D volume. If 4D, please select a time instant."
+    
+    data_flat = nii_data.ravel() # use .ravel to avoid copy in memories!
+    hist_range = (float(np.min(data_flat)), float(np.max(data_flat)))
+
+    # 1) No provided mask
     if mask_data is None:
+        print(f"Max:  {np.max(data_flat):.2f}")
+        print(f"Min:  {np.min(data_flat):.2f}")
+        print(f"Mean: {np.mean(data_flat):.2f}")
+        print(f"Std:  {np.std(data_flat):.2f}")
+
         plt.figure(figsize=(6, 4))
-        plt.hist(data_flat, density=True, bins=bins, range=hist_range)
+        plt.hist(data_flat, bins=bins, range=hist_range, density=True, color='gray', alpha=0.7)
         plt.title('Volume histogram — no mask')
+        plt.xlabel('Intensity')
+        plt.ylabel('Density')
+        plt.tight_layout()
         plt.show()
         return
 
-    assert nii_data.shape == mask_data.shape, "nii_data e mask_data devono avere la stessa shape."
-    
-    mask_flat = mask_data.astype(bool).flatten()
-    
-    if mask_flat.sum() == 0:
-        print("Attenzione: la maschera fornita non contiene voxel True.")
+    # 2:) Mask provided -> verifiche di validità
+    assert mask_data.shape == nii_data.shape, (
+        f"Shape mismatch: nii_data {nii_data.shape} vs mask_data {mask_data.shape}"
+    )
+
+    mask_bool = mask_data.astype(bool)
+    if not np.any(mask_bool):
+        print("Attention: the 3D volume does not contain any voxel inside the mask.")
         return
-
-    fig, axs = plt.subplots(1, 2, figsize=(10, 6))
-    axs[0].hist(data_flat, density=True, bins=bins, range=hist_range)
-    axs[0].set_title('Volume histogram — no mask')
-
-    axs[1].hist(data_flat[mask_flat], density=True, bins=bins, range=hist_range)
-    axs[1].set_title('Volume histogram — masked')
     
+    masked_voxels = nii_data[mask_bool]
+
+    print(f"Max:  {np.max(masked_voxels):.2f}")
+    print(f"Min:  {np.min(masked_voxels):.2f}")
+    print(f"Mean: {np.mean(masked_voxels):.2f}")
+    print(f"Std:  {np.std(masked_voxels):.2f}")
+    
+    fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+    
+    axs[0].hist(data_flat, bins=bins, range=hist_range, density=True, color='gray', alpha=0.7)
+    axs[0].set_title('Volume histogram — No mask')
+    axs[0].set_xlabel('Intensity')
+    axs[0].set_ylabel('Density')
+
+    axs[1].hist(masked_voxels, bins=bins, range=hist_range, density=True, color='crimson', alpha=0.7)
+    axs[1].set_title('Volume histogram — Masked')
+    axs[1].set_xlabel('Intensity')
+
+    plt.tight_layout()
     plt.show()
 
-
-def avg_intensity(nii_data, mask_data=None, single_slice=True, slice_idx=None, axis="axial"):
-    """
-    Input:
-    - nii_data: volume 3D
-    - mask_data: se fornita, la media è calcolata solo sui voxel dentro la maschera (default None)
-    - single_slice: se True calcola la media su un singolo slice, se False su tutto il volume (default True)
-    - slice_idx: indice dello slice, richiesto se single_slice=True
-    - axis: piano di riferimento se single_slice=True (default "axial")
-
-    Return: float, intensità media
-    """
-    if single_slice:
-        assert slice_idx is not None, "slice_idx è richiesto quando single_slice=True."
-        data, _ = _get_slice(nii_data, slice_idx, axis=axis)
-        if mask_data is not None:
-            mask, _ = _get_slice(mask_data, slice_idx, axis=axis)
-    else:
-        data = nii_data
-        mask = mask_data
-
-    if mask_data is None:
-        mean_val = np.mean(data)
-    else:
-        mask_bool = mask.astype(bool)
-        if mask_bool.sum() == 0:
-            print("Attenzione: la maschera non contiene voxel True in questa regione.")
-            return None
-        mean_val = np.mean(data[mask_bool])
-
-    scope = f"slice {slice_idx} ({axis})" if single_slice else "intero volume"
-    masked_str = "masked" if mask_data is not None else "unmasked"
-    print(f"Intensità media ({masked_str}) — {scope}: {mean_val:.3f}")
-    
-    return mean_val
-
-
+# ----------------------------------------------------------------- #
+# 
+# ----------------------------------------------------------------- #
 def avg_intensity_along_axis(nii_data, mask_data=None, axis="axial"):
     """
     Input:
@@ -170,8 +165,78 @@ def avg_intensity_along_axis(nii_data, mask_data=None, axis="axial"):
 
     return means
 
+# ----------------------------------------------------------------- #
+# 
+# ----------------------------------------------------------------- #
+def avg_signal_along_time(data_4d, TR=None):
+    """
+    Input:
+    - data_4d: volume fMRI 4D (x, y, z, t)
+    - TR: repetition time in secondi, se fornito l'asse x è in secondi, altrimenti in indice di volume (default None)
 
+    Return: 1D numpy array con la media globale del segnale per ogni istante temporale;
+            mostra anche il plot del segnale nel tempo
+    """
+    n_timepoints = data_4d.shape[3]
+    means = np.zeros(n_timepoints)
+
+    for t in range(n_timepoints):
+        means[t] = np.mean(data_4d[:, :, :, t])
+
+    if TR is not None:
+        time_pts = np.arange(n_timepoints) * TR
+        xlabel = 'Time (s)'
+    else:
+        time_pts = np.arange(n_timepoints)
+        xlabel = 'Time point index'
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(time_pts, means)
+    plt.xlabel(xlabel)
+    plt.ylabel('Mean global signal')
+    plt.title('Average signal over time')
+    plt.show()
+
+# ----------------------------------------------------------------- #
+# 
+# ----------------------------------------------------------------- #
 def avgFmriTemporalVolume(fmri_data):
 
     avg_volume = np.mean(fmri_data,axis=3)
     return avg_volume
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+    
+
+    
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
