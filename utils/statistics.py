@@ -59,7 +59,8 @@ def sliceHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray,
     plt.show()
 
 # ----------------------------------------------------------------- #
-# 
+# Given a 3D or 4D data structure, this function plot the           #
+# histogram of a 3D volume and its statistics.                      #    
 # ----------------------------------------------------------------- #
 def volumeHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray | None = None, 
                             bins = 100) -> None:
@@ -126,38 +127,41 @@ def volumeHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray | None =
     plt.show()
 
 # ----------------------------------------------------------------- #
-# 
+# Given a 3D structure, this functions computes a 1D vector, each   #
+# position containing the average intensity value of a slice.       #
+# You can choose an axis along which compute the 1D vector.         #
 # ----------------------------------------------------------------- #
-def avg_intensity_along_axis(nii_data, mask_data=None, axis="axial"):
+def avgIntensityAlongAxis(nii_data: np.ndarray, mask_data: np.ndarray | None = None, axis = "axial") -> np.ndarray:
+
     """
     Input:
-    - nii_data: volume 3D
-    - mask_data: se fornita, la media di ogni slice è calcolata solo sui voxel dentro la maschera (default None)
-    - axis: piano lungo cui scorrere (default "axial")
+    - nii_data: 3D volume
+    - mask_data: if provided, the mean value of each slice is computed only on valid voxels (default None).
+    - axis: POV (default "axial")
 
-    Return: 1D numpy array con l'intensità media per ogni slice lungo l'asse scelto;
-            mostra anche il plot del profilo
+    Output:
+    - means: 1D vector containing in each position the avg value of a slice
     """
+
     axis_to_shape_idx = {"axial": 2, "sagittal": 1, "coronal": 0}
     if axis not in axis_to_shape_idx:
-        raise ValueError('axis must be "axial", "sagittal" or "coronal"')
+        raise ValueError('Axis must be axial, sagittal or coronal')
     
     n_slices = nii_data.shape[axis_to_shape_idx[axis]]
     means = np.zeros(n_slices)
 
-    for i in range(n_slices):
-        slice_2d, _ = _get_slice(nii_data, i, axis=axis)
-        
+    for idx in range(n_slices):
+        slice, _ = getSlice(nii_data, idx, axis=axis)
         if mask_data is None:
-            means[i] = np.mean(slice_2d)
+            means[idx] = np.mean(slice)
         else:
-            mask_slice, _ = _get_slice(mask_data, i, axis=axis)
+            mask_slice, _ = getSlice(mask_data, idx, axis=axis)
             mask_bool = mask_slice.astype(bool)
-            means[i] = np.mean(slice_2d[mask_bool]) if mask_bool.sum() > 0 else np.nan
+            means[idx] = np.mean(slice[mask_bool]) if mask_bool.sum() > 0 else np.nan
 
+    masked_str = "Masked" if mask_data is not None else "Unmasked"
     plt.figure(figsize=(8, 4))
-    plt.plot(means)
-    masked_str = "masked" if mask_data is not None else "unmasked"
+    plt.plot(means)    
     plt.title(f'Average intensity along {axis} axis ({masked_str})')
     plt.xlabel('Slice index')
     plt.ylabel('Mean intensity')
@@ -166,17 +170,20 @@ def avg_intensity_along_axis(nii_data, mask_data=None, axis="axial"):
     return means
 
 # ----------------------------------------------------------------- #
-# 
+# Given a 4D data structure (frmi) this function compute the        # 
+# mean signal on each 3D volume along the time axis, resulting      #
+# in a 1D vector that is displayed.                                 #
 # ----------------------------------------------------------------- #
-def avg_signal_along_time(data_4d, TR=None):
+def avgIntensityAlongTime(data_4d: np.ndarray, TR: float | None = None) -> np.ndarray:
     """
     Input:
-    - data_4d: volume fMRI 4D (x, y, z, t)
-    - TR: repetition time in secondi, se fornito l'asse x è in secondi, altrimenti in indice di volume (default None)
+    - data_4d: 4D fmri volume (x, y, z, t)
+    - TR: repetition time in seconds, if provided the x label in the plot is displayed in seconds, otherwise integer indexes are used (default None)
 
-    Return: 1D numpy array con la media globale del segnale per ogni istante temporale;
-            mostra anche il plot del segnale nel tempo
+    Output:
+    - means: 1D array with the global mean of the signal at every time instant
     """
+
     n_timepoints = data_4d.shape[3]
     means = np.zeros(n_timepoints)
 
@@ -193,16 +200,24 @@ def avg_signal_along_time(data_4d, TR=None):
     plt.figure(figsize=(10, 6))
     plt.plot(time_pts, means)
     plt.xlabel(xlabel)
-    plt.ylabel('Mean global signal')
+    plt.ylabel('Mean signal on 3D volume')
     plt.title('Average signal over time')
     plt.show()
 
-# ----------------------------------------------------------------- #
-# 
-# ----------------------------------------------------------------- #
-def avgFmriTemporalVolume(fmri_data):
+    return means
 
-    avg_volume = np.mean(fmri_data,axis=3)
+# ----------------------------------------------------------------- #
+# Compute the mean 3D volume along the time axis
+# ----------------------------------------------------------------- #
+def avgVolumeAlongTime(data_4d: np.ndarray) -> np.ndarray:
+    """
+    Input:
+    - data_4d: fmri data
+
+    Output
+    - avg_volume: 3D structure resulting from the mean of all the volumes along the time axis
+    """
+    avg_volume = np.mean(data_4d, axis=3)
     return avg_volume
 
 
