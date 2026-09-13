@@ -1,53 +1,198 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import time # Idea: try different configurations for each method, and for each configuration compute the time spent to obtain the result
 
 from sklearn.cluster import KMeans
 from skimage.filters import threshold_multiotsu
-
 from utils.display import getSlice
 
+# ----------------------------------------------------------------- #
+# This function plots a slice of choice, segmented with K-Means     #
+# with some configurations decided by the user. Then at the end     #
+# a table containing all the usefull information is displayed.      #
+# At the end, also the segmented slices are returned so that the    #
+# user can use them for comparisons.                                #
+# ----------------------------------------------------------------- #
+def kMeansSegmentation(t1_data: np.ndarray, brain_data: np.ndarray, bool_mask: np.ndarray, 
+                       configs: list, slice_idx: int = None, axis:int = 2) -> np.ndarray:
 
+    # If slice is not specified, I take the slice in the middle
+    if slice_idx is None:
+        slice_idx = t1_data.shape[axis] // 2
 
-def kmean_segmentation(t1_data, brain_data, mask, n_cluster, random_state=0, init='auto'):
+    results = [] # it will be a list of dictionaries, each one containing the results of a specific configuration
+    n_configs = len(configs)
 
-    kmeans = KMeans(n_clusters=n_cluster, random_state=random_state, n_init=init)
-    brain_data = brain_data.reshape(brain_data.shape[0],-1)
+    fig, axes = plt.subplots(2, n_configs, figsize=(5 * n_configs, 10))    
+    if n_configs == 1:
+        axes = [axes]
 
-    kmeans.fit(brain_data)
+    slices = []
 
-    segmented = np.zeros_like(t1_data)
-    segmented[mask] = kmeans.labels_
-    assert len(segmented[mask]) == len(kmeans.labels_), "Il numero di valori non coincide"
+    for i, config in enumerate(configs):
+        # Start the timer
+        start_time = time.time()
 
-    return segmented
+        # Initialize KMeans object and fit the data
+        kmeans = KMeans(**config)
+        kmeans.fit(brain_data)
+        
+        # Stop the timer and compute the elapsed_time
+        elapsed_time = time.time() - start_time
+        
+        t1_data_segmented = np.zeros_like(t1_data)
+        t1_data_segmented[bool_mask] = kmeans.labels_
 
+        # Ensure the equality in the shapes
+        assert len(t1_data_segmented[bool_mask]) == len(kmeans.labels_), "Mismatch in the number of segmented values"
+        
+        # Count pixels for each label
+        unique, counts = np.unique(kmeans.labels_, return_counts=True)
+        pixels_per_label = dict(zip(unique, counts))
+        
+        # Save all the results in a dicitonary and append it to results
+        results.append({
+            'config_id': i + 1,
+            'n_clusters': config.get('n_clusters', 8),
+            'init': config.get('init', 'k-means++'),
+            'algorithm': config.get('algorithm', 'lloyd'),
+            'time_sec': round(elapsed_time, 3),
+            'n_iter': kmeans.n_iter_,
+            'inertia': round(kmeans.inertia_, 2),
+            'n_features': kmeans.n_features_in_,
+            'pixels_per_label': pixels_per_label
+        })
+        
+        if axis == 0:
+            slice_orig = t1_data[slice_idx, :, :]
+            slice_img = t1_data_segmented[slice_idx, :, :]
+        elif axis == 1:
+            slice_orig = t1_data[:, slice_idx, :]
+            slice_img = t1_data_segmented[:, slice_idx, :]
+        else:
+            slice_orig = t1_data[:, :, slice_idx]
+            slice_img = t1_data_segmented[:, :, slice_idx]
 
-def otsu_segmentation(brain_data):
+        if i == 0:
+            slices.append(slice_orig)
+        slices.append(slice_img)
+            
+        ax_orig = axes[0, i]
+        ax_orig.imshow(slice_orig, cmap='gray')
+        ax_orig.set_title(f"Originale - Slice {slice_idx}\n(Config {i+1})")
+        ax_orig.axis('off')
 
-    thresh = threshold_multiotsu(brain_data)
-    return thresh
+        # Plot immagine segmentata (riga 1)
+        ax_seg = axes[1, i]
+        ax_seg.imshow(slice_img, cmap='gray')
+        ax_seg.set_title(f"Segmentata - Config {i+1}\nIter: {kmeans.n_iter_} | Time: {elapsed_time:.2f}s")
+        ax_seg.axis('off')
+        
+    plt.tight_layout()
+    plt.show()
 
+    df_summary = pd.DataFrame(results)
+    return df_summary, slices
+
+# ----------------------------------------------------------------- #
+# This function plots a slice of choice, segmented with Otsu        #
+# with some configurations decided by the user. Then at the end     #
+# a table containing all the usefull information is displayed.      #
+# At the end, also the segmented slices are returned so that the    #
+# user can use them for comparisons.                                #
+# ----------------------------------------------------------------- #
+def otsuSegmentation(t1_data: np.ndarray, brain_data: np.ndarray, bool_mask: np.ndarray, 
+                               configs: list, slice_idx: int = None, axis: int = 2):
+    
+    if slice_idx is None:
+        slice_idx = t1_data.shape[axis] // 2
+        
+    risultati = []
+    n_configs = len(configs)
+    
+    fig, axes = plt.subplots(2, n_configs, figsize=(5 * n_configs, 10))
+    if n_configs == 1:
+        axes = np.expand_dims(axes, axis=1)
+
+    slices = []
+        
+    for i, config in enumerate(configs):
+        n_classes = config.get('classes', 3) 
+        
+        start_time = time.time()
+        thresholds = threshold_multiotsu(brain_data, classes=n_classes)
+        labels = np.digitize(brain_data, bins=thresholds)
+        elapsed_time = time.time() - start_time
+        
+        t1_data_segmented = np.zeros_like(t1_data)
+        t1_data_segmented[bool_mask] = labels
+        
+        assert len(t1_data_segmented[bool_mask]) == len(labels), "Qualcosa non torna con le dimensioni"
+        
+        unique, counts = np.unique(labels, return_counts=True)
+        pixels_per_label = dict(zip(unique, counts))
+        
+        risultati.append({
+            'config_id': i + 1,
+            'classes': n_classes,
+            'time_sec': round(elapsed_time, 3),
+            'thresholds': str(np.round(thresholds, 2).tolist()),
+            'pixels_per_label': pixels_per_label
+        })
+        
+        if axis == 0:
+            slice_orig, slice_seg = t1_data[slice_idx, :, :], t1_data_segmented[slice_idx, :, :]
+        elif axis == 1:
+            slice_orig, slice_seg = t1_data[:, slice_idx, :], t1_data_segmented[:, slice_idx, :]
+        else:
+            slice_orig, slice_seg = t1_data[:, :, slice_idx], t1_data_segmented[:, :, slice_idx]
+
+        if i == 0:
+            slices.append(slice_orig)
+
+        slices.append(slice_seg)
+
+        axes[0, i].imshow(slice_orig, cmap='gray')
+        axes[0, i].set_title(f"Originale - Slice {slice_idx}\n(MultiOtsu {n_classes} classi)")
+        axes[0, i].axis('off')
+        axes[1, i].imshow(slice_seg, cmap='gray')
+        axes[1, i].set_title(f"Segmentata - Config {i+1}\nTime: {elapsed_time:.2f}s")
+        axes[1, i].axis('off')
+        
+    plt.tight_layout()
+    plt.show()
+    
+    return pd.DataFrame(risultati), slices
 
 # ------------------------------------------------------------------- #
-# Given a NiFti data structure, display a group of slices.            #
-# You can give a predefined list of indexes or sample them randomnly, #
-# or set a starting idx with a step                                   #
 # ------------------------------------------------------------------- #
-def compare_methods(t1_data, segmented1, segmented2, slice_idx, axis="axial"):
+def compareSegmentationMethods(slice_orig, slice_kmeans, slice_otsu, stats_kmeans, stats_otsu):
+    
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    
+    # 1. Plot Originale
+    axes[0].imshow(slice_orig, cmap='gray')
+    axes[0].set_title("Immagine Originale (T1w)")
+    axes[0].axis('off')
+    
+    # 2. Plot K-Means
+    axes[1].imshow(slice_kmeans, cmap='gray')
+    axes[1].set_title(f"K-Means ({stats_kmeans.get('n_clusters', 'N')} Cluster)\nTempo: {stats_kmeans.get('time_sec', 0)}s")
+    axes[1].axis('off')
+    
+    # 3. Plot Multi-Otsu
+    axes[2].imshow(slice_otsu, cmap='gray')
+    axes[2].set_title(f"Multi-Otsu ({stats_otsu.get('classes', 'N')} Classi)\nTempo: {stats_otsu.get('time_sec', 0)}s")
+    axes[2].axis('off')
+    
+    plt.tight_layout()
+    plt.show()
 
-    original_slice, _ = getSlice(t1_data, slice_idx=slice_idx, axis=axis)
-    slice1, _ = getSlice(segmented1, slice_idx=slice_idx, axis=axis)
-    slice2, _ = getSlice(segmented2, slice_idx=slice_idx, axis=axis)
+    df_compare = pd.DataFrame([stats_kmeans, stats_otsu], index=['K-Means', 'Multi-Otsu'])
+    return df_compare
 
-    fig, axs = plt.subplots(1,3,figsize=(10,6))
-    axs[0].imshow(original_slice, cmap='gray')
-    axs[0].set_axis_off()
-    axs[0].set_title("Original Image")
-    axs[1].imshow(slice1, cmap='gray')
-    axs[1].set_axis_off()
-    axs[1].set_title("KMeans result")
-    axs[2].imshow(slice2, cmap='gray')
-    axs[2].set_axis_off()
-    axs[2].set_title("Otsu Result")
+
+
 
 
