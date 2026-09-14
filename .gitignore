@@ -7,4 +7,3 @@ data/
 utils/*
 *.pyc
 __pycache__/
-utils/
