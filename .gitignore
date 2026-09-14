@@ -4,6 +4,5 @@ data/
 *.csv
 *.npy
 /figures
-utils/*
 *.pyc
 __pycache__/
