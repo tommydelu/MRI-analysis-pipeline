@@ -232,7 +232,7 @@ def logEdgeDetection(slice, sigmas=[1.0, 2.0, 3.0]):
         # 1. Smoothing Gaussiano (compute the kernel size according to the sigma)
         ksize = int(2 * round(3 * sigma) + 1) 
         blurred_slice = cv.GaussianBlur(slice_float, (ksize, ksize), sigmaX=sigma)
-        log_edges = np.abs(cv.filter2D(blurred_slice, -1, laplacian_mask))
+        log_edges = np.abs(cv.filter2D(blurred_slice, -1, laplacian_mask)) # just for a better visualization
         log_edges_list.append(log_edges)
 
         axs[i+1].imshow(log_edges, cmap='gray')

@@ -166,6 +166,8 @@ def otsuSegmentation(t1_data: np.ndarray, brain_data: np.ndarray, bool_mask: np.
     return pd.DataFrame(risultati), slices
 
 # ------------------------------------------------------------------- #
+# Comparison between two slices obtained with two different           #
+# segmentation methods, visually and statistically.                   #
 # ------------------------------------------------------------------- #
 def compareSegmentationMethods(slice_orig, slice_kmeans, slice_otsu, stats_kmeans, stats_otsu):
     
