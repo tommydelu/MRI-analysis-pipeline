@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
+import random
 
 # ----------------------------------------------------------------- #
 # Load a file in the .nii format and display a summary of its       #
@@ -183,6 +184,20 @@ def displayGroupOfSlices(nii_data: np.ndarray, count, starting_idx: int = 0, spa
     plt.suptitle(f'{axis.capitalize()} view — group of {count} slices')
     plt.tight_layout()
     plt.show()
+
+# ------------------------------------------------------------------- #
+# ------------------------------------------------------------------- #
+def getTemporalSignals(data: np.ndarray, count: int = 4, idxs: list = None) -> np.ndarray:
+    if idxs == None:
+        # If I do not give any idx, I pick random ones
+        rand_ints = random.sample(range(0,200), count)
+        signals = data[:,rand_ints]
+        return signals
+    else:    
+        assert (count==len(idxs)) , "The number of signals to extract and the number of indeces do not match!"
+        signals = data[:,idxs]
+        return signals
+
 
 
 
