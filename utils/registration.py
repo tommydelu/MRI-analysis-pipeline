@@ -9,7 +9,7 @@ from fsl.wrappers import flirt, LOAD
 
 def flirtRegistration(src, ref, configs, slice_idx=45, axis=2, out_mat_path=None):
 
-    ref_data = ref.get_fdata() if hasattr(ref, 'get_fdata') else ref.data
+    ref_data = ref.get_fdata()
     risultati = []
     n_configs = len(configs)
     
@@ -28,7 +28,7 @@ def flirtRegistration(src, ref, configs, slice_idx=45, axis=2, out_mat_path=None
         elapsed_time = time.time() - start_time
         
         aligned_img = res['out']
-        aligned_data = aligned_img.get_fdata() if hasattr(aligned_img, 'get_fdata') else aligned_img.data
+        aligned_data = aligned_img.get_fdata()
         
         # NMI computation: count how many times bin X of original img fall spatially on the bin Y of the aligned img
         # I cannot use continuous values for the intensity, the NMI would produce too many tissues --> I need to discretize

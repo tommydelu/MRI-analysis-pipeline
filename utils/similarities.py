@@ -24,15 +24,15 @@ def computeSimilarityMatrix(time_series: np.ndarray, similarity_measure: str = '
     - mat: similarity matrix
     """
 
-    is_correlation = False
+    is_correlation = False # correlation measures quantify similarity (corr, spearman), distance measures quantify dissimilarity in a multi-dimensional space
 
-    if similarity_measure == 'corr':
+    if similarity_measure == 'corr': # [-1,1]
         mat = np.corrcoef(time_series.T) # Because np.corrcoef wants (variables x features)
         is_correlation = True
-    elif similarity_measure == 'spearman':
+    elif similarity_measure == 'spearman': # [-1,1]
         mat = spearmanr(time_series).statistic
         is_correlation = True
-    elif similarity_measure == 'euclidean':
+    elif similarity_measure == 'euclidean': # [0, inf], low value = more similar
         ts_z = zscore(time_series, axis=0)
         mat = euclidean_distances(ts_z.T, ts_z.T)
     elif similarity_measure == 'cheby':
@@ -147,7 +147,7 @@ def compareSimilarityMethods(matrices_dict: dict, df_regions: pd.DataFrame, top_
         for pair in top_pairs:
             i = pair[0]
             j = pair[1]
-            ordered_pair = (min(i, j), max(i, j))
+            ordered_pair = (min(i, j), max(i, j)) # create a set so that duplicates are removed
             unique_pairs_set.add(ordered_pair)
 
         top_pairs_dict[name] = unique_pairs_set
@@ -178,7 +178,8 @@ def compareSimilarityMethods(matrices_dict: dict, df_regions: pd.DataFrame, top_
         })
         
     summary_df = pd.DataFrame(summary_rows)
-    
+
+    # Jaccard Index is also used in segmentation to check the quality of a mask, based on common area / total area
     pearson_top_set = top_pairs_dict['corr']
     overlap_list = []
     for name in matrices_dict.keys():
@@ -228,11 +229,9 @@ def pcaAnalysis(mat: np.ndarray, n_comp: int, regions_csv: pd.DataFrame, plot: b
 # ----------------------------------------------------------------- #
 def icaAnalysis(mat: np.ndarray, n_comp: int, regions_csv: pd.DataFrame, plot: bool = True) -> pd.DataFrame:
 
-    # 1. Fit FastICA
     ica = FastICA(n_components=n_comp, random_state=42, max_iter=500)
     sources = ica.fit_transform(mat)  # Shape: (200, n_comp)
 
-    # 2. Plot delle distribuzioni delle sorgenti indipendenti
     if plot:
         plt.figure(figsize=(12, 4))
         for comp_idx in range(min(4, n_comp)):
@@ -244,7 +243,7 @@ def icaAnalysis(mat: np.ndarray, n_comp: int, regions_csv: pd.DataFrame, plot: b
         plt.grid(axis='y', linestyle='--', alpha=0.5)
         plt.show()
 
-    # 3. Estrazione Top ROI per la Componente 1 (IC1)
+    # extraction of the first source
     ic1_weights = sources[:, 0]
     top_roi_indices = np.argsort(np.abs(ic1_weights))[::-1][:10]
 

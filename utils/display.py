@@ -85,7 +85,7 @@ def displaySingleSlice(nii_data: np.ndarray, slice_idx: int,
 # Extract a 2D slice from the data structure given in input.        #
 # All the boundaries are checked to ensure a correct extraction     #
 # ----------------------------------------------------------------- #
-def getSlice(nii_data: np.ndarray, slice_idx: int, axis: str = "axial", time_instant: int = 0) -> tuple[np.memmap, int]:
+def getSlice(nii_data: np.ndarray, slice_idx: int, axis: str = "axial", time_instant: int = 0) -> tuple[np.ndarray, int]:
     
     """
     Input:

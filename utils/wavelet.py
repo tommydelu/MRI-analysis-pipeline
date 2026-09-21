@@ -37,7 +37,6 @@ def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float,
         scale_min = pywt.frequency2scale(name, f_max * sampling_period)
         scale_max = pywt.frequency2scale(name, f_min * sampling_period)
 
-        # Logarithmic Progression
         scales = np.logspace(np.log10(scale_min), np.log10(scale_max), num=64)
         
         cwtmatr, freqs = pywt.cwt(signal, scales=scales, wavelet=name, sampling_period=sampling_period)
@@ -45,7 +44,6 @@ def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float,
         cwt_results.append((name, cwt_magnitude, freqs, scale_min, scale_max))
         global_max = max(global_max, cwt_magnitude.max())
 
-    # 2. Plotting
     im = None
     for i, (name, mag, freqs, s_min, s_max) in enumerate(cwt_results):
         vmax = global_max if shared_scale else None
@@ -60,8 +58,6 @@ def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float,
         )
 
         axs[i].set_title(f"{name} (Scales: [{s_min:.1f}, {s_max:.1f}])")
-
-        # Mostra label assi solo sui bordi esterni per non affollare
         if i >= 3:
             axs[i].set_xlabel("Time (s)")
         if i % 3 == 0:

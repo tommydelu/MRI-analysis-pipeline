@@ -224,19 +224,6 @@ def cannyEdgeDetection(slice, t1: int = 100, t2: int = 200):
 
 # ----------------------------------------------------------------- #
 # ----------------------------------------------------------------- #
-def fmriVolumesSmoothing(data_4d: np.ndarray, sigma: float = 1.0) -> np.ndarray:
-
-    smoothed_data = np.zeros_like(data_4d)
-    n_volumes = data_4d.shape[3]
-
-    # For each volume at time t, apply smoothing
-    for t in range(n_volumes):
-        volume3d = data_4d[:, :, :, t]
-        smoothed_data[:, :, :, t] = gaussian_filter(volume3d, sigma=sigma)  
-    return smoothed_data
-
-# ----------------------------------------------------------------- #
-# ----------------------------------------------------------------- #
 def logEdgeDetection(slice, sigmas=[1.0, 2.0, 3.0]):
 
     slice_float = slice.astype(np.float64)
@@ -267,3 +254,17 @@ def logEdgeDetection(slice, sigmas=[1.0, 2.0, 3.0]):
     plt.show()
     
     return log_edges_list
+
+# ----------------------------------------------------------------- #
+# ----------------------------------------------------------------- #
+def fmriVolumesSmoothing(data_4d: np.ndarray, sigma: float = 1.0) -> np.ndarray:
+
+    smoothed_data = np.zeros_like(data_4d)
+    n_volumes = data_4d.shape[3]
+
+    # For each volume at time t, apply smoothing
+    for t in range(n_volumes):
+        volume3d = data_4d[:, :, :, t]
+        smoothed_data[:, :, :, t] = gaussian_filter(volume3d, sigma=sigma)  
+    return smoothed_data
+
