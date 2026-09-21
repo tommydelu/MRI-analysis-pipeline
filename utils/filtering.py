@@ -5,35 +5,35 @@ import matplotlib.pyplot as plt
 import scipy.fft as fft
 from scipy.ndimage import gaussian_filter
 
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.fft as fft
+
 # ----------------------------------------------------------------- #
-# This function performs a low pass filtering in the frequcency     #
+# This function performs a low pass filtering in the frequency      #
 # domain with different options (ideal, gaussian, butterworth)      #
 # ----------------------------------------------------------------- #
-def freqLowPassFilter(slice: np.ndarray, threshold: float, order: int = 2) -> None:
-
+def freqLowPassFilter(slice: np.ndarray, threshold: float, order: int = 2) -> tuple:
     """
     Input
     - slice: 2D data structure
-    - threshold: distance in pixels from the center frequency that we want to erase and put to 0
+    - threshold: distance in pixels from the center frequency to cut off
+    - order: Butterworth filter order
 
     Output:
-    – filtered_ideal, filtered_gaussian, filtered_butterworth: the slice cleaned from the noise for each of the methods
+    - filtered_ideal, filtered_gaussian, filtered_butterworth
     """
     x, y = np.indices(slice.shape[0:2])
-    distance_map = np.sqrt((x - slice.shape[0]//2)**2 + (y - slice.shape[1]//2)**2) # Distance of each point from the center
+    distance_map = np.sqrt((x - slice.shape[0]//2)**2 + (y - slice.shape[1]//2)**2)
 
-    freq_slice = fft.fftshift(fft.fft2(slice)) # Apply DFT and centering
+    freq_slice = fft.fftshift(fft.fft2(slice))
     magnitude_slice = np.abs(freq_slice)
 
-    # 1) ideal low pass filter
+    # 1) Ideal low pass filter
     ideal_mask = np.where(distance_map <= threshold, 1.0, 0.0)
-    magnitude_slice_clean = magnitude_slice * ideal_mask # stretching operation
+    magnitude_slice_clean = np.log(1 + (magnitude_slice * ideal_mask))
     freq_slice_clean = freq_slice * ideal_mask
     filtered_ideal = np.abs(fft.ifft2(fft.ifftshift(freq_slice_clean)))
-
-    print(f"Before contrast stretching - Maximum value: {np.max(magnitude_slice_clean)}")
-    magnitude_slice_clean = np.log(1+(magnitude_slice * ideal_mask)) # stretching operation
-    print(f"After contrast stretching - Maximum value: {np.max(magnitude_slice_clean)}")
 
     # 2) Gaussian low pass filter
     gaussian_mask = np.exp(-distance_map**2 / (2 * (threshold**2)))
@@ -47,30 +47,53 @@ def freqLowPassFilter(slice: np.ndarray, threshold: float, order: int = 2) -> No
     freq_butterworth_slice = freq_slice * butterworth_mask
     filtered_butterworth = np.abs(fft.ifft2(fft.ifftshift(freq_butterworth_slice)))
 
-    fig, axs = plt.subplots(2, 3, figsize=(15, 5))
+    # Compute differences (Noise / High Frequencies removed)
+    diff_ideal = slice - filtered_ideal
+    diff_gaussian = slice - filtered_gaussian
+    diff_butterworth = slice - filtered_butterworth
+
+    # Plotting
+    fig, axs = plt.subplots(3, 3, figsize=(15, 12))
+    
+    # Row 1: Frequency Domain
     axs[0,0].imshow(magnitude_slice_clean, cmap='gray')
-    axs[0,0].set_title('Ideal Low Pass Filtered Magnitude')
+    axs[0,0].set_title('Ideal LPF (Magnitude)')
     axs[0,0].axis('off')
 
     axs[0,1].imshow(gaussian_magnitude_clean, cmap='gray')
-    axs[0,1].set_title('Gaussian Low Pass Filtered Magnitude')
+    axs[0,1].set_title('Gaussian LPF (Magnitude)')
     axs[0,1].axis('off')
 
     axs[0,2].imshow(butterworth_magnitude_clean, cmap='gray')
-    axs[0,2].set_title('Butterworth Low Pass Filtered Magnitude')
+    axs[0,2].set_title(f'Butterworth LPF order {order} (Magnitude)')
     axs[0,2].axis('off')
 
+    # Row 2: Spatial Domain (Filtered Images)
     axs[1,0].imshow(filtered_ideal, cmap='gray')
-    axs[1,0].set_title('Original Image - Ideal filter')
+    axs[1,0].set_title('Filtered Image - Ideal')
     axs[1,0].axis('off')
 
     axs[1,1].imshow(filtered_gaussian, cmap='gray')
-    axs[1,1].set_title('Original Image - Gaussian filter')
+    axs[1,1].set_title('Filtered Image - Gaussian')
     axs[1,1].axis('off')
 
     axs[1,2].imshow(filtered_butterworth, cmap='gray')
-    axs[1,2].set_title('Original Image - Butterworth filter')
+    axs[1,2].set_title('Filtered Image - Butterworth')
     axs[1,2].axis('off')
+
+    vmax = np.max([np.abs(diff_ideal), np.abs(diff_gaussian), np.abs(diff_butterworth)])
+    
+    axs[2,0].imshow(diff_ideal, cmap='gray', vmin=-vmax, vmax=vmax)
+    axs[2,0].set_title('Removed Frequencies (Ideal)')
+    axs[2,0].axis('off')
+
+    axs[2,1].imshow(diff_gaussian, cmap='gray', vmin=-vmax, vmax=vmax)
+    axs[2,1].set_title('Removed Frequencies (Gaussian)')
+    axs[2,1].axis('off')
+
+    axs[2,2].imshow(diff_butterworth, cmap='gray', vmin=-vmax, vmax=vmax)
+    axs[2,2].set_title('Removed Frequencies (Butterworth)')
+    axs[2,2].axis('off')
 
     plt.tight_layout()
     plt.show()
@@ -147,6 +170,7 @@ def secondDerivativeEdgeDetection(slice):
                                   [ 1, -8,  1],
                                   [ 1,  1,  1]], dtype=np.float64)
 
+    # The results contains both positive and negative numbers --> the zero value is mapped in the middle color which is gray
     # Taking the absolute value makes zero-crossings and edges pop out visually
     laplacian_edges_90 = np.abs(cv.filter2D(slice_float, -1, laplacian_mask_90))
     laplacian_edges_45 = np.abs(cv.filter2D(slice_float, -1, laplacian_mask_45))

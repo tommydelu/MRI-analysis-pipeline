@@ -2,6 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import nibabel as nib
 import random
+import pandas as pd
+from utils.similarities import extractRegionNameFromLabel
+from config import REGIONS_CSV_PATH
+
+df = pd.read_csv(REGIONS_CSV_PATH)
 
 # ----------------------------------------------------------------- #
 # Load a file in the .nii format and display a summary of its       #
@@ -149,7 +154,6 @@ def displayGroupOfSlices(nii_data: np.ndarray, count, starting_idx: int = 0, spa
     
     n_slices = nii_data.shape[axis_to_shape_idx[axis]]
 
-    # --- Build the list of indices to display ---
     if sparse:
         if idxs_list is None: # Choose idxs randomnly
             print(f"No list provided: choosing {count} random indexes.")
@@ -164,7 +168,6 @@ def displayGroupOfSlices(nii_data: np.ndarray, count, starting_idx: int = 0, spa
         assert max(indices) < n_slices, \
             f"starting_idx + count * disp_step exceeds the number of slices ({n_slices})."
 
-    # --- Build the grid ---
     n_cols = min(max_cols, count)
     n_rows = int(np.ceil(count / n_cols))
 
@@ -186,17 +189,25 @@ def displayGroupOfSlices(nii_data: np.ndarray, count, starting_idx: int = 0, spa
     plt.show()
 
 # ------------------------------------------------------------------- #
+# This function returns count number of temporal signals from data.   #
 # ------------------------------------------------------------------- #
-def getTemporalSignals(data: np.ndarray, count: int = 4, idxs: list = None) -> np.ndarray:
-    if idxs == None:
-        # If I do not give any idx, I pick random ones
-        rand_ints = random.sample(range(0,200), count)
-        signals = data[:,rand_ints]
-        return signals
-    else:    
-        assert (count==len(idxs)) , "The number of signals to extract and the number of indeces do not match!"
-        signals = data[:,idxs]
-        return signals
+def getTemporalSignals(data: np.ndarray, count: int = 4, idxs: list = None) -> dict:
+
+    if idxs is None:
+        max_idx = data.shape[1]
+        idxs = random.sample(range(max_idx), count)
+    else:
+        assert (
+            count == len(idxs)
+        ), "Il numero di segnali richiesto e la lunghezza di idxs non coincidono!"
+
+    signals = {}
+    for idx in idxs:
+        region_name = extractRegionNameFromLabel(idx, df)
+        key_name = f"{region_name} (idx {idx})"
+        signals[key_name] = data[:, idx]
+
+    return signals
 
 
 

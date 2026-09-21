@@ -8,18 +8,13 @@ from fsl.wrappers import flirt, LOAD
 
 
 def flirtRegistration(src, ref, configs, slice_idx=45, axis=2, out_mat_path=None):
-    """
-    Funzione universale per valutare configurazioni FLIRT su qualsiasi coppia src/ref.
-    Trova la configurazione con NMI più alta e ne salva la matrice di trasformazione.
-    """
+
     ref_data = ref.get_fdata() if hasattr(ref, 'get_fdata') else ref.data
     risultati = []
     n_configs = len(configs)
     
-    fig, axes = plt.subplots(n_configs, 2, figsize=(10, 4.2 * n_configs))
-    if n_configs == 1:
-        axes = np.expand_dims(axes, axis=0)
-        
+    fig, axes = plt.subplots(n_configs, 2, figsize=(10, 4.2 * n_configs), squeeze=False)
+
     best_nmi = -1
     best_mat_file = None
     temp_mats = []
@@ -35,9 +30,10 @@ def flirtRegistration(src, ref, configs, slice_idx=45, axis=2, out_mat_path=None
         aligned_img = res['out']
         aligned_data = aligned_img.get_fdata() if hasattr(aligned_img, 'get_fdata') else aligned_img.data
         
-        # Calcolo NMI
-        bins = 50
-        ref_binned = np.digitize(ref_data.ravel(), np.linspace(ref_data.min(), ref_data.max(), bins))
+        # NMI computation: count how many times bin X of original img fall spatially on the bin Y of the aligned img
+        # I cannot use continuous values for the intensity, the NMI would produce too many tissues --> I need to discretize
+        bins = 50 # divide gray levels in 50 values
+        ref_binned = np.digitize(ref_data.ravel(), np.linspace(ref_data.min(), ref_data.max(), bins)) # convert intensity values into these 50 levels, discretizing the img
         aligned_binned = np.digitize(aligned_data.ravel(), np.linspace(aligned_data.min(), aligned_data.max(), bins))
         nmi = normalized_mutual_info_score(ref_binned, aligned_binned)
         
@@ -54,7 +50,6 @@ def flirtRegistration(src, ref, configs, slice_idx=45, axis=2, out_mat_path=None
             'NMI_score': round(nmi, 4)
         })
         
-        # Estrazione slice
         if axis == 0: s_ref, s_alig = ref_data[slice_idx, :, :], aligned_data[slice_idx, :, :]
         elif axis == 1: s_ref, s_alig = ref_data[:, slice_idx, :], aligned_data[:, slice_idx, :]
         else: s_ref, s_alig = ref_data[:, :, slice_idx], aligned_data[:, :, slice_idx]
@@ -70,15 +65,15 @@ def flirtRegistration(src, ref, configs, slice_idx=45, axis=2, out_mat_path=None
     plt.tight_layout()
     plt.show()
 
-    # Salvataggio della matrice ottimale
+    # Saving the optimal matrix
     if out_mat_path and best_mat_file:
         out_mat_path = Path(out_mat_path)
         out_mat_path.parent.mkdir(parents=True, exist_ok=True)
         best_mat = np.loadtxt(best_mat_file)
         np.savetxt(str(out_mat_path), best_mat, fmt='%0.10f')
-        print(f"Matrice ottimale salvata in: {out_mat_path}")
-        
-    # Pulizia file temporanei
+        print(f"Optimal matrix saved in: {out_mat_path}")
+
+    # Remove files that are not optimal
     for f in temp_mats:
         Path(f).unlink(missing_ok=True)
         

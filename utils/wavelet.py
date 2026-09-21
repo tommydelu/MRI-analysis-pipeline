@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 
 from scipy.signal import detrend
 
-
 def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float, 
-                             freqs_range: list[float, float], shared_scale:bool=False) -> None:
+                             freqs_range: list[float, float], region_name: str,
+                             shared_scale:bool=False) -> None:
 
     wavelet_type = ['mexh', 'morl', 'cmor1.5-1.0', 'gaus1', 'cgau1', 'shan1.5-1.0']
 
@@ -26,7 +26,7 @@ def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float,
     
 
     fig, axs = plt.subplots(2, 3, figsize=(14, 8), sharex=True, sharey=True, constrained_layout=True)
-    fig.suptitle("Wavelet Scalograms (CWT)", fontsize=14, fontweight="bold")    
+    fig.suptitle(f"{region_name} - Wavelet Scalograms (CWT)", fontsize=14, fontweight="bold")    
     axs = axs.flatten()
 
     cwt_results = []

@@ -41,7 +41,7 @@ def sliceHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray,
     print(f"Mean: {np.mean(masked_voxels):.2f}")
     print(f"Std:  {np.std(masked_voxels):.2f}")
 
-    all_voxels = slice_data.ravel()
+    all_voxels = slice_data.ravel() # vectorize for the hist function
     hist_range = (float(np.min(all_voxels)), float(np.max(all_voxels)))
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 4))
@@ -76,7 +76,7 @@ def volumeHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray | None =
 
     assert len(nii_data.shape) == 3, "volume_hist expects a 3D volume. If 4D, please select a time instant."
     
-    data_flat = nii_data.ravel() # use .ravel to avoid copy in memories!
+    data_flat = nii_data.ravel() # I use .ravel to avoid copy in memories, vectorize for the hist function
     hist_range = (float(np.min(data_flat)), float(np.max(data_flat)))
 
     # 1) No provided mask
@@ -95,7 +95,7 @@ def volumeHistAndStatistics(nii_data: np.ndarray, mask_data: np.ndarray | None =
         plt.show()
         return
 
-    # 2:) Mask provided -> verifiche di validità
+    # 2:) Mask provided -> validity checks
     assert mask_data.shape == nii_data.shape, (
         f"Shape mismatch: nii_data {nii_data.shape} vs mask_data {mask_data.shape}"
     )
@@ -191,7 +191,7 @@ def avgIntensityAlongTime(data_4d: np.ndarray, TR: float | None = None) -> np.nd
         means[t] = np.mean(data_4d[:, :, :, t])
 
     if TR is not None:
-        time_pts = np.arange(n_timepoints) * TR
+        time_pts = np.arange(n_timepoints) * TR # time points for the plot in seconds on the x-axis
         xlabel = 'Time (s)'
     else:
         time_pts = np.arange(n_timepoints)
