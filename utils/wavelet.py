@@ -6,7 +6,7 @@ from scipy.signal import detrend
 
 def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float, 
                              freqs_range: list[float, float], region_name: str,
-                             shared_scale:bool=False) -> None:
+                             shared_scale:bool=True) -> None:
 
     wavelet_type = ['mexh', 'morl', 'cmor1.5-1.0', 'gaus1', 'cgau1', 'shan1.5-1.0']
 
@@ -48,7 +48,7 @@ def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float,
     for i, (name, mag, freqs, s_min, s_max) in enumerate(cwt_results):
         vmax = global_max if shared_scale else None
 
-        im = axs[i].pcolormesh(
+        im = axs[i].pcolormesh( # to plot correctly the logaritmic scale
             time_seconds,
             freqs,
             mag,
@@ -63,8 +63,6 @@ def applyAndCompareWTMethods(signal: np.ndarray, sampling_period: float,
         if i % 3 == 0:
             axs[i].set_ylabel("Frequency (Hz)")
 
-    cbar_label = (
-        "WT Magnitude (Shared)" if shared_scale else "WT Magnitude (Shan)"
-    )
+    cbar_label = "WT Magnitude"
     fig.colorbar(im, ax=axs.tolist(), label=cbar_label, shrink=0.8)
     plt.show()
